@@ -35,7 +35,7 @@ export function InventoryScreen() {
               <View style={styles.itemText}>
                 <Text style={styles.name}>{row.drug.displayName}</Text>
                 <Text style={styles.average}>
-                  Avg paid {formatCurrency(row.averagePurchasePrice ?? 0)}
+                  {row.drug.unit} / Avg paid {formatCurrency(row.averagePurchasePrice ?? 0)}
                 </Text>
               </View>
               <Text style={styles.quantity}>{row.quantity}</Text>

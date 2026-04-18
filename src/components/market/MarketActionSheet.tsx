@@ -4,11 +4,11 @@ import { UI } from '../../config/ui';
 import type { DrugDefinition, PlayerRun, TradeResult } from '../../domain/models/types';
 import {
   getCurrentPrice,
-  getHeldQuantity,
   getMaxBuyQuantity,
   getMaxSellQuantity,
 } from '../../domain/selectors/runSelectors';
 import { formatCurrency } from '../../utils/formatting';
+import { getBuyFlowProductName } from '../../utils/productDisplay';
 import { Button } from '../common/Button';
 
 type MarketActionSheetProps = {
@@ -38,8 +38,8 @@ export function MarketActionSheet({
   const unitPrice = getCurrentPrice(run, drug.drugId) ?? 0;
   const maxBuy = getMaxBuyQuantity(run, drug.drugId);
   const maxSell = getMaxSellQuantity(run, drug.drugId);
-  const held = getHeldQuantity(run, drug.drugId);
   const effectiveQuantity = Math.max(1, quantity);
+  const displayName = getBuyFlowProductName(drug.displayName);
 
   const handleResult = (result: TradeResult, verb: 'Bought' | 'Sold') => {
     if (result.ok) {
@@ -58,10 +58,8 @@ export function MarketActionSheet({
         <View style={styles.sheet}>
           <View style={styles.header}>
             <View>
-              <Text style={styles.title}>{drug.displayName}</Text>
-              <Text style={styles.meta}>
-                {formatCurrency(unitPrice)} each / Held {held}
-              </Text>
+              <Text style={styles.title}>{displayName}</Text>
+              <Text style={styles.meta}>{formatCurrency(unitPrice)}</Text>
             </View>
             <Pressable accessibilityRole="button" onPress={onClose} style={styles.close}>
               <Text style={styles.closeText}>Close</Text>

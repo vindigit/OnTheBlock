@@ -1,4 +1,4 @@
-import type { HiddenMarketConditionId, VolatilityClass } from '../domain/models/types';
+import type { HiddenMarketConditionId } from '../domain/models/types';
 
 export const RUN_CONFIG = {
   runLengthDays: 31,
@@ -7,17 +7,11 @@ export const RUN_CONFIG = {
   startingHealth: 100,
   baseCapacity: 100,
   debtGrowthRate: 0.04,
-  saveVersion: 1,
+  saveVersion: 2,
 } as const;
 
 export const MARKET_CONFIG = {
   activeDrugCount: 8,
-  volatilityRanges: {
-    low: [0.92, 1.08],
-    medium: [0.78, 1.26],
-    high: [0.58, 1.62],
-    'very-high': [0.38, 1.95],
-  } satisfies Record<VolatilityClass, readonly [number, number]>,
   conditionPriceBias: {
     steady: 1,
     discounted: 0.84,

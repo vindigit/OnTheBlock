@@ -7,7 +7,6 @@ import type {
   HiddenMarketConditionId,
   LocationId,
   LocationState,
-  VolatilityClass,
 } from '../../models/types';
 import { createRng, deriveSeed, shuffleWithRng } from '../../../utils/rng';
 
@@ -18,29 +17,23 @@ type GenerateMarketInput = {
   hiddenMarketConditionId: HiddenMarketConditionId;
 };
 
-function scaleVolatilityRange(
-  volatilityClass: VolatilityClass,
-  conditionId: HiddenMarketConditionId,
-): readonly [number, number] {
-  const [baseMin, baseMax] = MARKET_CONFIG.volatilityRanges[volatilityClass];
-  const scale = MARKET_CONFIG.conditionVolatilityScale[conditionId];
-  return [1 + (baseMin - 1) * scale, 1 + (baseMax - 1) * scale];
+function clampPrice(price: number, drug: DrugDefinition): number {
+  return Math.min(drug.maxPrice, Math.max(drug.minPrice, price));
 }
 
 export function getPriceEnvelope(
   drug: DrugDefinition,
   conditionId: HiddenMarketConditionId,
 ): readonly [number, number] {
-  const [volatilityMin, volatilityMax] = scaleVolatilityRange(
-    drug.volatilityClass,
-    conditionId,
-  );
+  const volatilityScale = MARKET_CONFIG.conditionVolatilityScale[conditionId];
   const bias = MARKET_CONFIG.conditionPriceBias[conditionId];
+  const centeredPrice = drug.normalAvg * bias;
+  const lowSpread = (drug.normalAvg - drug.minPrice) * volatilityScale;
+  const highSpread = (drug.maxPrice - drug.normalAvg) * volatilityScale;
+  const minPrice = clampPrice(Math.round(centeredPrice - lowSpread), drug);
+  const maxPrice = clampPrice(Math.round(centeredPrice + highSpread), drug);
 
-  return [
-    Math.max(1, Math.round(drug.priceBandMin * volatilityMin * bias)),
-    Math.max(1, Math.round(drug.priceBandMax * volatilityMax * bias)),
-  ];
+  return minPrice <= maxPrice ? [minPrice, maxPrice] : [maxPrice, minPrice];
 }
 
 export function generateMarketForLocation(input: GenerateMarketInput): LocationState {

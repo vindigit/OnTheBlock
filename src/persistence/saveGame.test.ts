@@ -1,4 +1,5 @@
 import { createNewRun } from '../domain/engines/run/runEngine';
+import { DRUG_BY_ID } from '../config/drugs';
 import { InMemoryStorage } from './storage';
 import {
   SAVE_GAME_KEY,
@@ -20,7 +21,7 @@ describe('save game persistence', () => {
       return;
     }
     expect(parsed.saveGame.serializedRunState).toEqual(run);
-    expect(parsed.saveGame.saveVersion).toBe(1);
+    expect(parsed.saveGame.saveVersion).toBe(2);
   });
 
   it('loads through a storage adapter', () => {
@@ -47,5 +48,102 @@ describe('save game persistence', () => {
       ok: false,
       reason: 'unsupported-version',
     });
+  });
+
+  it('migrates v1 saves with legacy drug ids', () => {
+    const run = createNewRun({ seed: 'legacy-save' });
+    const legacySave = {
+      saveSlotId: 'active-run',
+      serializedRunState: {
+        ...run,
+        inventory: {
+          coke: { quantity: 2, averagePurchasePrice: 2000 },
+          acid: { quantity: 3, averagePurchasePrice: 600 },
+          'perc-30s': { quantity: 4, averagePurchasePrice: 900 },
+        },
+        stashInventory: {
+          '2cb': { quantity: 5, averagePurchasePrice: 1800 },
+          ecstasy: { quantity: 6, averagePurchasePrice: 450 },
+        },
+        actionLog: [
+          ...run.actionLog,
+          {
+            type: 'buy',
+            day: 1,
+            locationId: run.currentLocationId,
+            drugId: 'coke',
+            quantity: 2,
+            unitPrice: 2000,
+            total: 4000,
+          },
+          {
+            type: 'sell',
+            day: 1,
+            locationId: run.currentLocationId,
+            drugId: 'ecstasy',
+            quantity: 1,
+            unitPrice: 450,
+            total: 450,
+          },
+        ],
+      },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      appVersion: '1.0.0',
+      saveVersion: 1,
+    };
+
+    const parsed = deserializeSaveGame(JSON.stringify(legacySave));
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+
+    const migratedRun = parsed.saveGame.serializedRunState;
+    expect(parsed.saveGame.saveVersion).toBe(2);
+    expect(migratedRun.inventory.coke_brick).toEqual({
+      quantity: 2,
+      averagePurchasePrice: 2000,
+    });
+    expect(migratedRun.inventory.acid_sheet).toEqual({
+      quantity: 3,
+      averagePurchasePrice: 600,
+    });
+    expect(migratedRun.inventory.perc_30s).toEqual({
+      quantity: 4,
+      averagePurchasePrice: 900,
+    });
+    expect(migratedRun.stashInventory.two_cb_powder).toEqual({
+      quantity: 5,
+      averagePurchasePrice: 1800,
+    });
+    expect(migratedRun.stashInventory.molly).toEqual({
+      quantity: 6,
+      averagePurchasePrice: 450,
+    });
+
+    for (const state of Object.values(migratedRun.locationStates)) {
+      expect(state.activeDrugIds).toHaveLength(8);
+      expect(Object.keys(state.localPriceMap)).toHaveLength(8);
+
+      for (const drugId of state.activeDrugIds) {
+        expect(DRUG_BY_ID[drugId]).toBeDefined();
+        expect(state.localPriceMap[drugId]).toBeGreaterThanOrEqual(
+          DRUG_BY_ID[drugId].minPrice,
+        );
+        expect(state.localPriceMap[drugId]).toBeLessThanOrEqual(
+          DRUG_BY_ID[drugId].maxPrice,
+        );
+      }
+    }
+
+    expect(
+      migratedRun.actionLog.filter(
+        (entry) =>
+          (entry.type === 'buy' || entry.type === 'sell') &&
+          !DRUG_BY_ID[entry.drugId],
+      ),
+    ).toEqual([]);
   });
 });

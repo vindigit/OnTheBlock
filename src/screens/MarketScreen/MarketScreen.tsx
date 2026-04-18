@@ -8,10 +8,7 @@ import { MarketRow } from '../../components/market/MarketRow';
 import { DRUG_BY_ID } from '../../config/drugs';
 import { UI } from '../../config/ui';
 import type { DrugDefinition, DrugId } from '../../domain/models/types';
-import {
-  getCurrentMarketQuotes,
-  getHeldQuantity,
-} from '../../domain/selectors/runSelectors';
+import { getCurrentMarketQuotes } from '../../domain/selectors/runSelectors';
 
 export function MarketScreen() {
   const run = useRunStore((state) => state.currentRun);
@@ -40,7 +37,6 @@ export function MarketScreen() {
           <MarketRow
             key={quote.drugId}
             drug={DRUG_BY_ID[quote.drugId]}
-            held={getHeldQuantity(run, quote.drugId)}
             quote={quote}
             onPress={() => setSelectedDrugId(quote.drugId)}
           />

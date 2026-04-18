@@ -1,15 +1,17 @@
 export type DrugId =
-  | 'weed'
-  | 'coke'
+  | 'coke_brick'
   | 'heroin'
-  | 'acid'
-  | 'speed'
-  | 'perc-30s'
+  | 'two_cb_powder'
+  | 'acid_sheet'
+  | 'crack'
   | 'shrooms'
   | 'hashish'
-  | 'crack'
-  | '2cb'
-  | 'ecstasy'
+  | 'ketamine'
+  | 'speed'
+  | 'vape_box'
+  | 'weed'
+  | 'molly'
+  | 'perc_30s'
   | 'lean';
 
 export type LocationId =
@@ -18,8 +20,6 @@ export type LocationId =
   | 'velvet-heights'
   | 'ez-mart';
 
-export type VolatilityClass = 'low' | 'medium' | 'high' | 'very-high';
-export type EventSensitivityClass = 'low' | 'medium' | 'high' | 'very-high';
 export type HiddenMarketConditionId =
   | 'steady'
   | 'discounted'
@@ -36,10 +36,10 @@ export type Inventory = Partial<Record<DrugId, InventoryEntry>>;
 export type DrugDefinition = {
   drugId: DrugId;
   displayName: string;
-  priceBandMin: number;
-  priceBandMax: number;
-  volatilityClass: VolatilityClass;
-  eventSensitivityClass: EventSensitivityClass;
+  unit: string;
+  minPrice: number;
+  maxPrice: number;
+  normalAvg: number;
 };
 
 export type LocationDefinition = {

@@ -3,7 +3,7 @@ import { MARKET_CONFIG } from '../../../config/economy';
 import { generateMarketForLocation, getPriceEnvelope } from './marketEngine';
 
 describe('market engine', () => {
-  it('generates exactly 8 active drugs from the 12-drug catalog', () => {
+  it('generates exactly 8 active drugs from the 14-product catalog', () => {
     const market = generateMarketForLocation({
       seed: 'market',
       day: 1,
@@ -13,12 +13,14 @@ describe('market engine', () => {
 
     expect(market.activeDrugIds).toHaveLength(MARKET_CONFIG.activeDrugCount);
     expect(new Set(market.activeDrugIds).size).toBe(MARKET_CONFIG.activeDrugCount);
+    expect(Object.keys(market.localPriceMap)).toHaveLength(MARKET_CONFIG.activeDrugCount);
 
     for (const drugId of market.activeDrugIds) {
       expect(DRUG_BY_ID[drugId]).toBeDefined();
+      expect(market.localPriceMap[drugId]).toBeDefined();
     }
 
-    expect(DRUGS).toHaveLength(12);
+    expect(DRUGS).toHaveLength(14);
   });
 
   it('is stable for the same seed, day, and location', () => {
@@ -45,6 +47,23 @@ describe('market engine', () => {
       const [minPrice, maxPrice] = getPriceEnvelope(DRUG_BY_ID[drugId], 'inflated');
       expect(price).toBeGreaterThanOrEqual(minPrice);
       expect(price).toBeLessThanOrEqual(maxPrice);
+    }
+  });
+
+  it('keeps generated prices inside product min and max bounds', () => {
+    const market = generateMarketForLocation({
+      seed: 'bounds',
+      day: 9,
+      locationId: 'vista-creek-towers',
+      hiddenMarketConditionId: 'choppy',
+    });
+
+    for (const drugId of market.activeDrugIds) {
+      const drug = DRUG_BY_ID[drugId];
+      const price = market.localPriceMap[drugId] ?? 0;
+
+      expect(price).toBeGreaterThanOrEqual(drug.minPrice);
+      expect(price).toBeLessThanOrEqual(drug.maxPrice);
     }
   });
 });

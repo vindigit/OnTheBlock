@@ -2,25 +2,26 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { UI } from '../../config/ui';
 import type { DrugDefinition, MarketQuote } from '../../domain/models/types';
 import { formatCurrency } from '../../utils/formatting';
+import { getBuyFlowProductName } from '../../utils/productDisplay';
 
 type MarketRowProps = {
   drug: DrugDefinition;
-  held: number;
   quote: MarketQuote;
   onPress: () => void;
 };
 
-export function MarketRow({ drug, held, onPress, quote }: MarketRowProps) {
+export function MarketRow({ drug, onPress, quote }: MarketRowProps) {
+  const displayName = getBuyFlowProductName(drug.displayName);
+
   return (
     <Pressable
-      accessibilityLabel={`${drug.displayName}, held ${held}, price ${quote.price}`}
+      accessibilityLabel={`${displayName}, price ${quote.price}`}
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}
     >
       <View style={styles.nameGroup}>
-        <Text style={styles.name}>{drug.displayName}</Text>
-        <Text style={styles.held}>Held {held}</Text>
+        <Text style={styles.name}>{displayName}</Text>
       </View>
       <Text style={styles.price}>{formatCurrency(quote.price)}</Text>
     </Pressable>
@@ -47,17 +48,11 @@ const styles = StyleSheet.create({
   },
   nameGroup: {
     flex: 1,
-    gap: 4,
   },
   name: {
     fontSize: 18,
     fontWeight: '900',
     color: UI.colors.ink,
-  },
-  held: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: UI.colors.muted,
   },
   price: {
     fontSize: 19,

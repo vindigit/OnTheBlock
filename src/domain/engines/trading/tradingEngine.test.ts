@@ -1,4 +1,5 @@
 import { LOCATIONS } from '../../../config/locations';
+import { DRUGS } from '../../../config/drugs';
 import type { DrugId } from '../../models/types';
 import {
   getAveragePurchasePrice,
@@ -11,26 +12,14 @@ import { createNewRun } from '../run/runEngine';
 import { buyDrug, sellDrug } from './tradingEngine';
 
 function getActiveDrug(run = createNewRun({ seed: 'trade' })) {
+  run = { ...run, cash: 1_000_000 };
   const quote = getCurrentMarketQuotes(run)[0];
   return { run, quote };
 }
 
 function getInactiveDrugId(run: ReturnType<typeof createNewRun>): DrugId {
   const active = new Set(run.locationStates[run.currentLocationId].activeDrugIds);
-  const allIds: DrugId[] = [
-    'weed',
-    'coke',
-    'heroin',
-    'acid',
-    'speed',
-    'perc-30s',
-    'shrooms',
-    'hashish',
-    'crack',
-    '2cb',
-    'ecstasy',
-    'lean',
-  ];
+  const allIds = DRUGS.map((drug) => drug.drugId);
 
   const inactive = allIds.find((drugId) => !active.has(drugId));
 
