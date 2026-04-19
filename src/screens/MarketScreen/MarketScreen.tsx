@@ -1,6 +1,9 @@
+import { useNavigation, type NavigationProp } from '@react-navigation/native';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import type { RootStackParamList } from '../../application/navigation/AppNavigator';
 import { useRunStore } from '../../application/store/runStore';
+import { Button } from '../../components/common/Button';
 import { Screen } from '../../components/common/Screen';
 import { RunHud } from '../../components/hud/RunHud';
 import { MarketActionSheet } from '../../components/market/MarketActionSheet';
@@ -8,9 +11,14 @@ import { MarketRow } from '../../components/market/MarketRow';
 import { DRUG_BY_ID } from '../../config/drugs';
 import { UI } from '../../config/ui';
 import type { DrugDefinition, DrugId } from '../../domain/models/types';
-import { getCurrentMarketQuotes } from '../../domain/selectors/runSelectors';
+import {
+  canAccessBodega,
+  canAccessLoanShark,
+  getCurrentMarketQuotes,
+} from '../../domain/selectors/runSelectors';
 
 export function MarketScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const run = useRunStore((state) => state.currentRun);
   const buy = useRunStore((state) => state.buy);
   const sell = useRunStore((state) => state.sell);
@@ -32,6 +40,18 @@ export function MarketScreen() {
         <Text style={styles.title}>Market</Text>
         <Text style={styles.copy}>Only posted products move here today.</Text>
       </View>
+      {canAccessBodega(run) || canAccessLoanShark(run) ? (
+        <View style={styles.contextActions}>
+          {canAccessBodega(run) ? (
+            <Button onPress={() => navigation.navigate('Bodega')}>Bodega Menu</Button>
+          ) : null}
+          {canAccessLoanShark(run) ? (
+            <Button onPress={() => navigation.navigate('SharksOffice')} tone="danger">
+              Meet Big Sal
+            </Button>
+          ) : null}
+        </View>
+      ) : null}
       <View style={styles.list}>
         {quotes.map((quote) => (
           <MarketRow
@@ -78,6 +98,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   list: {
+    gap: 10,
+  },
+  contextActions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
 });

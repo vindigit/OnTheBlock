@@ -6,11 +6,12 @@ import type {
   LocationId,
   LocationState,
   PlayerRun,
+  PlayerRunEquipment,
   TravelResult,
 } from '../../models/types';
 import { createRng, createRunSeed, deriveSeed } from '../../../utils/rng';
 import { generateMarketsForDay } from '../market/marketEngine';
-import { applyDailyDebtGrowth } from '../debt/debtEngine';
+import { travelToLocation as travelToLocationForRun } from '../travel/travelEngine';
 
 type CreateNewRunOptions = {
   seed?: string;
@@ -39,6 +40,18 @@ function createEmptyLocationStates(
   return locationStates;
 }
 
+export function createEmptyEquipment(): PlayerRunEquipment {
+  return {
+    ownedSurvivalItems: {},
+    ownedApparelItemIds: [],
+    ownedWeapons: {},
+    ownedAttachmentCounts: {},
+    equippedWeaponLoadout: {
+      weaponId: null,
+    },
+  };
+}
+
 export function createNewRun(options: CreateNewRunOptions = {}): PlayerRun {
   const seed = options.seed ?? createRunSeed();
   const runId = options.runId ?? `run-${seed}`;
@@ -61,11 +74,12 @@ export function createNewRun(options: CreateNewRunOptions = {}): PlayerRun {
     capacityBase: RUN_CONFIG.baseCapacity,
     capacityBonus: 0,
     inventory: {},
-    equippedWeaponId: null,
+    equipment: createEmptyEquipment(),
     bankBalance: 0,
     stashInventory: {},
     eventCooldowns: {},
     encounterHistory: [],
+    pendingEncounter: null,
     locationStates,
     actionLog: [
       {
@@ -78,110 +92,11 @@ export function createNewRun(options: CreateNewRunOptions = {}): PlayerRun {
   };
 }
 
-function endRunAtDayLimit(run: PlayerRun): PlayerRun {
-  if (run.isRunEnded) {
-    return run;
-  }
-
-  return {
-    ...run,
-    isRunEnded: true,
-    endReason: 'day-limit',
-    actionLog: [
-      ...run.actionLog,
-      {
-        type: 'run-ended',
-        day: run.currentDay,
-        reason: 'day-limit',
-      },
-    ],
-  };
-}
-
 export function travelToLocation(
   run: PlayerRun,
   destinationLocationId: LocationId,
 ): TravelResult {
-  if (run.isRunEnded) {
-    return { ok: false, reason: 'run-ended' };
-  }
-
-  if (!LOCATIONS.some((location) => location.locationId === destinationLocationId)) {
-    return { ok: false, reason: 'unknown-location' };
-  }
-
-  if (destinationLocationId === run.currentLocationId) {
-    return { ok: false, reason: 'same-location' };
-  }
-
-  const involvesEzMart =
-    run.currentLocationId === 'ez-mart' || destinationLocationId === 'ez-mart';
-
-  if (involvesEzMart) {
-    return {
-      ok: true,
-      run: {
-        ...run,
-        currentLocationId: destinationLocationId,
-        actionLog: [
-          ...run.actionLog,
-          {
-            type: 'travel',
-            fromLocationId: run.currentLocationId,
-            toLocationId: destinationLocationId,
-            day: run.currentDay,
-            dayAdvanced: false,
-            debtBefore: run.debt,
-            debtAfter: run.debt,
-          },
-        ],
-      },
-      dayAdvanced: false,
-      endedRun: false,
-    };
-  }
-
-  const nextDay = run.currentDay + 1;
-  const debtAfter = applyDailyDebtGrowth(run.debt);
-  const traveledRun: PlayerRun = {
-    ...run,
-    currentDay: Math.min(nextDay, RUN_CONFIG.runLengthDays),
-    currentLocationId: destinationLocationId,
-    debt: debtAfter,
-    locationStates: generateMarketsForDay(
-      run.seed,
-      Math.min(nextDay, RUN_CONFIG.runLengthDays),
-      run.locationStates,
-    ),
-    actionLog: [
-      ...run.actionLog,
-      {
-        type: 'travel',
-        fromLocationId: run.currentLocationId,
-        toLocationId: destinationLocationId,
-        day: Math.min(nextDay, RUN_CONFIG.runLengthDays),
-        dayAdvanced: true,
-        debtBefore: run.debt,
-        debtAfter,
-      },
-    ],
-  };
-
-  if (nextDay >= RUN_CONFIG.runLengthDays) {
-    return {
-      ok: true,
-      run: endRunAtDayLimit(traveledRun),
-      dayAdvanced: true,
-      endedRun: true,
-    };
-  }
-
-  return {
-    ok: true,
-    run: traveledRun,
-    dayAdvanced: true,
-    endedRun: false,
-  };
+  return travelToLocationForRun(run, destinationLocationId);
 }
 
 export const moveToLocation = travelToLocation;

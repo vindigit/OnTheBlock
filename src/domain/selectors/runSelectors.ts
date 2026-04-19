@@ -1,6 +1,16 @@
 import { DRUG_BY_ID, DRUGS } from '../../config/drugs';
+import { ATTACHMENT_BY_ID } from '../../config/attachments';
+import { BODEGA_STOCK } from '../../config/items';
 import { LOCATION_BY_ID } from '../../config/locations';
-import type { DrugId, MarketQuote, PlayerRun } from '../models/types';
+import { WEAPON_BY_ID } from '../../config/weapons';
+import type {
+  AttachmentId,
+  BodegaStockItem,
+  DrugId,
+  MarketQuote,
+  PlayerRun,
+  WeaponId,
+} from '../models/types';
 
 export function getCapacityMax(run: PlayerRun): number {
   return run.capacityBase + run.capacityBonus;
@@ -27,6 +37,14 @@ export function getAveragePurchasePrice(run: PlayerRun, drugId: DrugId): number 
 
 export function getCurrentLocationName(run: PlayerRun): string {
   return LOCATION_BY_ID[run.currentLocationId].displayName;
+}
+
+export function canAccessBodega(run: PlayerRun): boolean {
+  return LOCATION_BY_ID[run.currentLocationId].hasBodega === true;
+}
+
+export function canAccessLoanShark(run: PlayerRun): boolean {
+  return LOCATION_BY_ID[run.currentLocationId].hasLoanShark === true;
 }
 
 export function getCurrentMarketQuotes(run: PlayerRun): MarketQuote[] {
@@ -82,4 +100,54 @@ export function getDrugName(drugId: DrugId): string {
 
 export function getNetAfterDebt(run: PlayerRun): number {
   return run.cash - run.debt;
+}
+
+export function getInstalledAttachmentIds(run: PlayerRun): AttachmentId[] {
+  const weaponId = run.equipment.equippedWeaponLoadout.weaponId;
+
+  if (!weaponId) {
+    return [];
+  }
+
+  return run.equipment.ownedWeapons[weaponId]?.installedAttachmentIds ?? [];
+}
+
+export function getEquippedWeaponStats(run: PlayerRun): {
+  weaponId: WeaponId;
+  displayName: string;
+  damage: number;
+  accuracy: number;
+  installedAttachmentIds: AttachmentId[];
+} | null {
+  const weaponId = run.equipment.equippedWeaponLoadout.weaponId;
+
+  if (!weaponId) {
+    return null;
+  }
+
+  const weapon = WEAPON_BY_ID[weaponId];
+  const installedAttachmentIds = getInstalledAttachmentIds(run);
+  const attachmentBonuses = installedAttachmentIds.reduce(
+    (total, attachmentId) => {
+      const attachment = ATTACHMENT_BY_ID[attachmentId];
+
+      return {
+        damage: total.damage + attachment.damageBonus,
+        accuracy: total.accuracy + attachment.accuracyBonus,
+      };
+    },
+    { damage: 0, accuracy: 0 },
+  );
+
+  return {
+    weaponId,
+    displayName: weapon.displayName,
+    damage: weapon.damage + attachmentBonuses.damage,
+    accuracy: weapon.accuracy + attachmentBonuses.accuracy,
+    installedAttachmentIds,
+  };
+}
+
+export function getBodegaStock(): BodegaStockItem[] {
+  return BODEGA_STOCK;
 }

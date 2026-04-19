@@ -7,7 +7,7 @@ describe('market engine', () => {
     const market = generateMarketForLocation({
       seed: 'market',
       day: 1,
-      locationId: 'ez-mart',
+      locationId: 'the-bodega',
       hiddenMarketConditionId: 'steady',
     });
 

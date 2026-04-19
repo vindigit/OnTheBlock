@@ -33,7 +33,8 @@ describe('run engine', () => {
     const run = { ...createNewRun({ seed: 'travel' }), currentLocationId: 'ashview-gardens' as const };
     const destination = LOCATIONS.find(
       (location) =>
-        location.locationId !== run.currentLocationId && location.locationId !== 'ez-mart',
+        location.locationId !== run.currentLocationId &&
+        location.locationId !== 'the-bodega',
     );
 
     expect(destination).toBeDefined();
@@ -51,28 +52,28 @@ describe('run engine', () => {
     expect(result.run.actionLog.at(-1)?.type).toBe('travel');
   });
 
-  it('moves into EZ Mart without advancing day, debt, or markets', () => {
+  it('travels into The Bodega and advances day, debt, and markets', () => {
     const run = {
       ...createNewRun({ seed: 'ez-in' }),
       currentLocationId: 'ashview-gardens' as const,
     };
-    const result = travelToLocation(run, 'ez-mart');
+    const result = travelToLocation(run, 'the-bodega');
 
     expect(result.ok).toBe(true);
     if (!result.ok) {
       return;
     }
-    expect(result.dayAdvanced).toBe(false);
-    expect(result.run.currentDay).toBe(run.currentDay);
-    expect(result.run.debt).toBe(run.debt);
-    expect(result.run.locationStates).toEqual(run.locationStates);
-    expect(result.run.currentLocationId).toBe('ez-mart');
+    expect(result.dayAdvanced).toBe(true);
+    expect(result.run.currentDay).toBe(run.currentDay + 1);
+    expect(result.run.debt).toBe(applyDailyDebtGrowth(run.debt));
+    expect(result.run.locationStates).not.toEqual(run.locationStates);
+    expect(result.run.currentLocationId).toBe('the-bodega');
   });
 
-  it('leaves EZ Mart without advancing day or debt', () => {
+  it('leaves The Bodega and advances day and debt', () => {
     const run = {
       ...createNewRun({ seed: 'ez-out' }),
-      currentLocationId: 'ez-mart' as const,
+      currentLocationId: 'the-bodega' as const,
     };
     const result = travelToLocation(run, 'vista-creek-towers');
 
@@ -80,9 +81,9 @@ describe('run engine', () => {
     if (!result.ok) {
       return;
     }
-    expect(result.dayAdvanced).toBe(false);
-    expect(result.run.currentDay).toBe(run.currentDay);
-    expect(result.run.debt).toBe(run.debt);
+    expect(result.dayAdvanced).toBe(true);
+    expect(result.run.currentDay).toBe(run.currentDay + 1);
+    expect(result.run.debt).toBe(applyDailyDebtGrowth(run.debt));
     expect(result.run.currentLocationId).toBe('vista-creek-towers');
   });
 
@@ -94,7 +95,8 @@ describe('run engine', () => {
     };
     const destination = LOCATIONS.find(
       (location) =>
-        location.locationId !== run.currentLocationId && location.locationId !== 'ez-mart',
+        location.locationId !== run.currentLocationId &&
+        location.locationId !== 'the-bodega',
     );
     const result = travelToLocation(run, destination!.locationId);
 

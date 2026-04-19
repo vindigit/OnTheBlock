@@ -18,7 +18,23 @@ export type LocationId =
   | 'ashview-gardens'
   | 'vista-creek-towers'
   | 'velvet-heights'
-  | 'ez-mart';
+  | 'the-bodega';
+
+export type SurvivalItemId = 'snickers' | 'bandages' | 'narcan';
+
+export type ApparelItemId = 'amiri_jeans' | 'crossbody_bag' | 'trench_coat';
+
+export type WeaponId = 'beretta' | 'glock_19' | 'draco';
+
+export type AttachmentId = 'switch' | 'laser_beam';
+
+export type BodegaItemId =
+  | SurvivalItemId
+  | ApparelItemId
+  | WeaponId
+  | AttachmentId;
+
+export type BodegaItemCategory = 'survival' | 'apparel' | 'defense' | 'attachments';
 
 export type HiddenMarketConditionId =
   | 'steady'
@@ -50,7 +66,54 @@ export type LocationDefinition = {
     x: number;
     y: number;
   };
+  hasBodega?: boolean;
+  hasLoanShark?: boolean;
 };
+
+export type SurvivalItemDefinition = {
+  itemId: SurvivalItemId;
+  displayName: string;
+  price: number;
+  category: 'survival';
+  description: string;
+  healAmount?: number;
+  reviveHealth?: number;
+};
+
+export type ApparelItemDefinition = {
+  itemId: ApparelItemId;
+  displayName: string;
+  price: number;
+  category: 'apparel';
+  description: string;
+  capacityBonus: number;
+};
+
+export type WeaponDefinition = {
+  weaponId: WeaponId;
+  displayName: string;
+  price: number;
+  category: 'defense';
+  damage: number;
+  accuracy: number;
+  description: string;
+};
+
+export type AttachmentDefinition = {
+  attachmentId: AttachmentId;
+  displayName: string;
+  price: number;
+  category: 'attachments';
+  damageBonus: number;
+  accuracyBonus: number;
+  description: string;
+};
+
+export type BodegaStockItem =
+  | SurvivalItemDefinition
+  | ApparelItemDefinition
+  | WeaponDefinition
+  | AttachmentDefinition;
 
 export type MarketQuote = {
   drugId: DrugId;
@@ -109,10 +172,93 @@ export type RunActionLogEntry =
       cashAfter: number;
     }
   | {
+      type: 'bodega-purchase';
+      day: number;
+      locationId: LocationId;
+      itemId: BodegaItemId;
+      category: BodegaItemCategory;
+      price: number;
+      cashAfter: number;
+    }
+  | {
+      type: 'weapon-equipped';
+      day: number;
+      locationId: LocationId;
+      weaponId: WeaponId;
+    }
+  | {
+      type: 'attachment-installed';
+      day: number;
+      locationId: LocationId;
+      weaponId: WeaponId;
+      attachmentId: AttachmentId;
+    }
+  | {
+      type: 'encounter-resolved';
+      day: number;
+      locationId: LocationId;
+      encounterId: string;
+      encounterType: EncounterType;
+      choice: EncounterChoice;
+      outcome: EncounterOutcome;
+    }
+  | {
       type: 'run-ended';
       day: number;
-      reason: 'day-limit';
+      reason: RunEndReason;
     };
+
+export type OwnedWeapon = {
+  weaponId: WeaponId;
+  installedAttachmentIds: AttachmentId[];
+};
+
+export type PlayerRunEquipment = {
+  ownedSurvivalItems: Partial<Record<SurvivalItemId, number>>;
+  ownedApparelItemIds: ApparelItemId[];
+  ownedWeapons: Partial<Record<WeaponId, OwnedWeapon>>;
+  ownedAttachmentCounts: Partial<Record<AttachmentId, number>>;
+  equippedWeaponLoadout: {
+    weaponId: WeaponId | null;
+  };
+};
+
+export type EncounterType = 'big-sal-interception' | 'legacy';
+
+export type EncounterChoice = 'hand-it-over' | 'run';
+
+export type EncounterOutcome =
+  | 'paid'
+  | 'escaped'
+  | 'caught'
+  | 'caught-revived'
+  | 'caught-run-ended';
+
+export type PendingEncounter = {
+  encounterId: string;
+  type: 'big-sal-interception';
+  title: string;
+  body: string;
+  createdDay: number;
+  fromLocationId: LocationId;
+  toLocationId: LocationId;
+  debtAtTrigger: number;
+};
+
+export type EncounterHistoryEntry = {
+  encounterId: string;
+  type: EncounterType;
+  day: number;
+  locationId: LocationId;
+  choice: EncounterChoice | 'legacy';
+  outcome: EncounterOutcome | 'legacy';
+  cashLost?: number;
+  debtReduced?: number;
+  healthLost?: number;
+  inventoryUnitsLost?: number;
+};
+
+export type RunEndReason = 'day-limit' | 'health-zero';
 
 export type PlayerRun = {
   runId: string;
@@ -125,15 +271,16 @@ export type PlayerRun = {
   capacityBase: number;
   capacityBonus: number;
   inventory: Inventory;
-  equippedWeaponId: string | null;
+  equipment: PlayerRunEquipment;
   bankBalance: number;
   stashInventory: Inventory;
   eventCooldowns: Record<string, number>;
-  encounterHistory: string[];
+  encounterHistory: EncounterHistoryEntry[];
+  pendingEncounter: PendingEncounter | null;
   locationStates: Record<LocationId, LocationState>;
   actionLog: RunActionLogEntry[];
   isRunEnded: boolean;
-  endReason?: 'day-limit';
+  endReason?: RunEndReason;
 };
 
 export type SaveGame = {
@@ -181,10 +328,11 @@ export type TravelResult =
       run: PlayerRun;
       dayAdvanced: boolean;
       endedRun: boolean;
+      triggeredEncounter: boolean;
     }
   | {
       ok: false;
-      reason: 'run-ended' | 'same-location' | 'unknown-location';
+      reason: 'run-ended' | 'same-location' | 'unknown-location' | 'pending-encounter';
     };
 
 export type DebtPaymentFailureReason =
@@ -193,7 +341,8 @@ export type DebtPaymentFailureReason =
   | 'no-cash'
   | 'no-debt'
   | 'insufficient-cash'
-  | 'exceeds-debt';
+  | 'exceeds-debt'
+  | 'unavailable-location';
 
 export type DebtPaymentResult =
   | {
@@ -204,6 +353,42 @@ export type DebtPaymentResult =
   | {
       ok: false;
       reason: DebtPaymentFailureReason;
+    };
+
+export type EquipmentFailureReason =
+  | 'run-ended'
+  | 'unavailable-location'
+  | 'unknown-item'
+  | 'insufficient-cash'
+  | 'already-owned'
+  | 'not-owned'
+  | 'no-equipped-weapon'
+  | 'no-attachment-owned'
+  | 'attachment-already-installed'
+  | 'invalid-target';
+
+export type EquipmentResult =
+  | {
+      ok: true;
+      run: PlayerRun;
+      itemId?: BodegaItemId;
+      weaponId?: WeaponId;
+      attachmentId?: AttachmentId;
+    }
+  | {
+      ok: false;
+      reason: EquipmentFailureReason;
+    };
+
+export type EncounterResolutionResult =
+  | {
+      ok: true;
+      run: PlayerRun;
+      outcome: EncounterOutcome;
+    }
+  | {
+      ok: false;
+      reason: 'run-ended' | 'no-pending-encounter' | 'invalid-choice';
     };
 
 export type LoadSaveResult =

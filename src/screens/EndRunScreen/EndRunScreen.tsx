@@ -27,7 +27,8 @@ export function EndRunScreen() {
         <SummaryRow label="Unpaid debt deduction" value={formatCurrency(run.debt)} />
         <SummaryRow label="Net worth" value={formatCurrency(getNetAfterDebt(run))} />
         <SummaryRow label="Days reached" value={`${run.currentDay}`} />
-        <SummaryRow label="Encounters survived" value={`${run.encounterHistory.length}`} />
+        <SummaryRow label="Encounters resolved" value={`${run.encounterHistory.length}`} />
+        <SummaryRow label="End reason" value={run.endReason?.split('-').join(' ') ?? 'day limit'} />
       </View>
       <Button onPress={() => startNewRun()}>New Run</Button>
       <Button onPress={abandonRun} tone="danger">

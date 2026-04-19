@@ -12,12 +12,14 @@ export const LOCATIONS: LocationDefinition[] = [
     displayName: 'Vista Creek Towers',
     mapNode: 2,
     mapPosition: { x: 79, y: 49 },
+    hasLoanShark: true,
   },
   {
-    locationId: 'ez-mart',
-    displayName: 'EZ Mart',
+    locationId: 'the-bodega',
+    displayName: 'The Bodega',
     mapNode: 3,
     mapPosition: { x: 50, y: 83 },
+    hasBodega: true,
   },
   {
     locationId: 'ashview-gardens',

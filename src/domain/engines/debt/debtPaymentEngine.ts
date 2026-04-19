@@ -1,3 +1,4 @@
+import { LOCATION_BY_ID } from '../../../config/locations';
 import type { DebtPaymentResult, PlayerRun } from '../../models/types';
 
 function isWholePositiveAmount(amount: number): boolean {
@@ -7,6 +8,10 @@ function isWholePositiveAmount(amount: number): boolean {
 export function payDebt(run: PlayerRun, amount: number): DebtPaymentResult {
   if (run.isRunEnded) {
     return { ok: false, reason: 'run-ended' };
+  }
+
+  if (!LOCATION_BY_ID[run.currentLocationId].hasLoanShark) {
+    return { ok: false, reason: 'unavailable-location' };
   }
 
   if (!isWholePositiveAmount(amount)) {
@@ -51,6 +56,22 @@ export function payDebt(run: PlayerRun, amount: number): DebtPaymentResult {
           cashAfter,
         },
       ],
+    },
+  };
+}
+
+export function collectDebtForInterception(run: PlayerRun): {
+  run: PlayerRun;
+  amount: number;
+} {
+  const amount = Math.min(run.cash, run.debt);
+
+  return {
+    amount,
+    run: {
+      ...run,
+      cash: run.cash - amount,
+      debt: run.debt - amount,
     },
   };
 }

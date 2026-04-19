@@ -1,13 +1,25 @@
 import { create } from 'zustand';
 import type {
+  AttachmentId,
+  BodegaItemId,
   DrugId,
   DebtPaymentResult,
+  EncounterChoice,
+  EncounterResolutionResult,
+  EquipmentResult,
   LocationId,
   PlayerRun,
   TradeResult,
   TravelResult,
+  WeaponId,
 } from '../../domain/models/types';
 import { payDebt as payDebtForRun } from '../../domain/engines/debt/debtPaymentEngine';
+import { resolvePendingEncounter as resolvePendingEncounterForRun } from '../../domain/engines/encounter/encounterEngine';
+import {
+  buyBodegaItem,
+  equipWeapon as equipWeaponForRun,
+  installAttachmentOnWeapon,
+} from '../../domain/engines/equipment/equipmentEngine';
 import { buyDrug, sellDrug } from '../../domain/engines/trading/tradingEngine';
 import { createNewRun, moveToLocation } from '../../domain/engines/run/runEngine';
 import { clearSavedRun, loadSavedRun, saveRun } from '../../persistence/saveGame';
@@ -29,6 +41,13 @@ type RunStoreState = {
   sell: (drugId: DrugId, quantity: number) => TradeResult;
   travel: (locationId: LocationId) => TravelResult;
   payDebt: (amount: number) => DebtPaymentResult;
+  buyBodegaItem: (itemId: BodegaItemId) => EquipmentResult;
+  equipWeapon: (weaponId: WeaponId) => EquipmentResult;
+  installAttachment: (
+    attachmentId: AttachmentId,
+    weaponId?: WeaponId,
+  ) => EquipmentResult;
+  resolvePendingEncounter: (choice: EncounterChoice) => EncounterResolutionResult;
   abandonRun: () => void;
 };
 
@@ -131,6 +150,66 @@ export const useRunStore = create<RunStoreState>((set, get) => ({
     }
 
     const result = payDebtForRun(run, amount);
+
+    if (result.ok) {
+      set({ currentRun: persistAndReturn(result.run), lastError: null });
+    }
+
+    return result;
+  },
+  buyBodegaItem: (itemId) => {
+    const run = get().currentRun;
+
+    if (!run) {
+      return { ok: false, reason: 'run-ended' };
+    }
+
+    const result = buyBodegaItem(run, itemId);
+
+    if (result.ok) {
+      set({ currentRun: persistAndReturn(result.run), lastError: null });
+    }
+
+    return result;
+  },
+  equipWeapon: (weaponId) => {
+    const run = get().currentRun;
+
+    if (!run) {
+      return { ok: false, reason: 'run-ended' };
+    }
+
+    const result = equipWeaponForRun(run, weaponId);
+
+    if (result.ok) {
+      set({ currentRun: persistAndReturn(result.run), lastError: null });
+    }
+
+    return result;
+  },
+  installAttachment: (attachmentId, weaponId) => {
+    const run = get().currentRun;
+
+    if (!run) {
+      return { ok: false, reason: 'run-ended' };
+    }
+
+    const result = installAttachmentOnWeapon(run, attachmentId, weaponId);
+
+    if (result.ok) {
+      set({ currentRun: persistAndReturn(result.run), lastError: null });
+    }
+
+    return result;
+  },
+  resolvePendingEncounter: (choice) => {
+    const run = get().currentRun;
+
+    if (!run) {
+      return { ok: false, reason: 'run-ended' };
+    }
+
+    const result = resolvePendingEncounterForRun(run, choice);
 
     if (result.ok) {
       set({ currentRun: persistAndReturn(result.run), lastError: null });

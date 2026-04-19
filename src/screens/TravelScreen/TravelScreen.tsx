@@ -25,10 +25,6 @@ export function TravelScreen() {
       setPendingLocation(null);
     }
   };
-  const pendingInvolvesEzMart =
-    pendingLocation !== null &&
-    (pendingLocation.locationId === 'ez-mart' || run.currentLocationId === 'ez-mart');
-
   return (
     <Screen scroll={false}>
       <RunHud run={run} />
@@ -85,11 +81,7 @@ export function TravelScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>Head to {pendingLocation?.displayName}?</Text>
-            <Text style={styles.modalCopy}>
-              {pendingInvolvesEzMart
-                ? 'EZ Mart runs do not burn the day.'
-                : 'Day advances and debt grows.'}
-            </Text>
+            <Text style={styles.modalCopy}>Day advances and debt grows.</Text>
             <Button
               onPress={() => {
                 if (pendingLocation) {

@@ -21,7 +21,7 @@ describe('save game persistence', () => {
       return;
     }
     expect(parsed.saveGame.serializedRunState).toEqual(run);
-    expect(parsed.saveGame.saveVersion).toBe(2);
+    expect(parsed.saveGame.saveVersion).toBe(3);
   });
 
   it('loads through a storage adapter', () => {
@@ -101,7 +101,7 @@ describe('save game persistence', () => {
     }
 
     const migratedRun = parsed.saveGame.serializedRunState;
-    expect(parsed.saveGame.saveVersion).toBe(2);
+    expect(parsed.saveGame.saveVersion).toBe(3);
     expect(migratedRun.inventory.coke_brick).toEqual({
       quantity: 2,
       averagePurchasePrice: 2000,
@@ -145,5 +145,46 @@ describe('save game persistence', () => {
           !DRUG_BY_ID[entry.drugId],
       ),
     ).toEqual([]);
+  });
+
+  it('migrates v2 saves with old Bodega and weapon state', () => {
+    const run = createNewRun({ seed: 'legacy-v2' });
+    const legacySave = {
+      saveSlotId: 'active-run',
+      serializedRunState: {
+        ...run,
+        currentLocationId: 'ez-mart',
+        equippedWeaponId: 'glock_19',
+        locationStates: {
+          ...run.locationStates,
+          'ez-mart': run.locationStates['the-bodega'],
+        },
+      },
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      appVersion: '1.0.0',
+      saveVersion: 2,
+    };
+
+    const parsed = deserializeSaveGame(JSON.stringify(legacySave));
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+    expect(parsed.saveGame.saveVersion).toBe(3);
+    expect(parsed.saveGame.serializedRunState.currentLocationId).toBe('the-bodega');
+    expect(
+      parsed.saveGame.serializedRunState.equipment.equippedWeaponLoadout.weaponId,
+    ).toBe('glock_19');
+    expect(
+      parsed.saveGame.serializedRunState.equipment.ownedWeapons.glock_19,
+    ).toEqual({
+      weaponId: 'glock_19',
+      installedAttachmentIds: [],
+    });
+    expect(
+      parsed.saveGame.serializedRunState.locationStates['the-bodega'],
+    ).toBeDefined();
   });
 });

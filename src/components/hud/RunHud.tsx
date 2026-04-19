@@ -5,6 +5,7 @@ import {
   getCapacityMax,
   getCapacityUsed,
   getCurrentLocationName,
+  getEquippedWeaponStats,
 } from '../../domain/selectors/runSelectors';
 import { formatCapacity, formatCurrency } from '../../utils/formatting';
 
@@ -14,6 +15,7 @@ type RunHudProps = {
 
 export function RunHud({ run }: RunHudProps) {
   const lowHealth = run.health > 0 && run.health <= 25;
+  const equippedWeapon = getEquippedWeaponStats(run);
 
   return (
     <View style={[styles.hud, lowHealth && styles.lowHealth]}>
@@ -30,6 +32,22 @@ export function RunHud({ run }: RunHudProps) {
           value={formatCapacity(getCapacityUsed(run), getCapacityMax(run))}
         />
       </View>
+      {equippedWeapon ? (
+        <View style={styles.weaponLine}>
+          <Text style={styles.weaponText}>
+            {equippedWeapon.displayName} / Dmg {equippedWeapon.damage} / Acc{' '}
+            {equippedWeapon.accuracy}%
+          </Text>
+          <View style={styles.modPills}>
+            {equippedWeapon.installedAttachmentIds.includes('switch') ? (
+              <Text style={styles.modPill}>SW</Text>
+            ) : null}
+            {equippedWeapon.installedAttachmentIds.includes('laser_beam') ? (
+              <Text style={styles.modPill}>LB</Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -106,5 +124,34 @@ const styles = StyleSheet.create({
   },
   warningText: {
     color: UI.colors.warning,
+  },
+  weaponLine: {
+    minHeight: 30,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  weaponText: {
+    flex: 1,
+    color: UI.colors.ink,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  modPills: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  modPill: {
+    minWidth: 28,
+    textAlign: 'center',
+    overflow: 'hidden',
+    borderRadius: UI.radius.small,
+    backgroundColor: UI.colors.accent,
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '900',
+    paddingHorizontal: 5,
+    paddingVertical: 3,
   },
 });

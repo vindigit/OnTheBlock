@@ -7,7 +7,8 @@ export const RUN_CONFIG = {
   startingHealth: 100,
   baseCapacity: 100,
   debtGrowthRate: 0.04,
-  saveVersion: 2,
+  saveVersion: 3,
+  narcanReviveHealth: 25,
 } as const;
 
 export const MARKET_CONFIG = {
@@ -32,3 +33,14 @@ export const HIDDEN_MARKET_CONDITIONS: HiddenMarketConditionId[] = [
   'inflated',
   'choppy',
 ];
+
+export const ENCOUNTER_CONFIG = {
+  bigSal: {
+    lowDebtThreshold: 20_000,
+    highDebtThreshold: 50_000,
+    lowDebtChance: 0.15,
+    highDebtChance: 0.3,
+    failedRunHealthLoss: 50,
+    failedRunInventoryLossRate: 0.1,
+  },
+} as const;
