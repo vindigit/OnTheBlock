@@ -1,9 +1,9 @@
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useEffect } from 'react';
-import { Modal, StyleSheet, Text, View } from 'react-native';
-import { Button } from '../../components/common/Button';
+import { useEffect, useState } from 'react';
+import { EncounterModal } from '../../components/encounter/EncounterModal';
+import { EncounterResultModal } from '../../components/encounter/EncounterResultModal';
 import { BodegaScreen } from '../../screens/BodegaScreen/BodegaScreen';
 import { BootScreen } from '../../screens/BootScreen/BootScreen';
 import { EndRunScreen } from '../../screens/EndRunScreen/EndRunScreen';
@@ -12,8 +12,13 @@ import { InventoryScreen } from '../../screens/InventoryScreen/InventoryScreen';
 import { MarketScreen } from '../../screens/MarketScreen/MarketScreen';
 import { SharksOfficeScreen } from '../../screens/SharksOfficeScreen/SharksOfficeScreen';
 import { TravelScreen } from '../../screens/TravelScreen/TravelScreen';
-import { UI } from '../../config/ui';
 import { useRunStore } from '../store/runStore';
+import { UI } from '../../config/ui';
+import {
+  getCapacityUsed,
+  getEquippedWeaponStats,
+} from '../../domain/selectors/runSelectors';
+import { formatCurrency } from '../../utils/formatting';
 
 export type MainTabParamList = {
   Market: undefined;
@@ -57,26 +62,52 @@ function MainTabs() {
   );
 }
 
-function EncounterOverlay() {
+function ConnectedEncounterModal() {
   const run = useRunStore((state) => state.currentRun);
   const resolvePendingEncounter = useRunStore((state) => state.resolvePendingEncounter);
-  const pendingEncounter = run?.pendingEncounter ?? null;
+  const [resultBlurb, setResultBlurb] = useState<{
+    title: string;
+    body: string;
+  } | null>(null);
+
+  if (!run) {
+    return null;
+  }
 
   return (
-    <Modal visible={pendingEncounter !== null} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>{pendingEncounter?.title}</Text>
-          <Text style={styles.modalCopy}>{pendingEncounter?.body}</Text>
-          <Button onPress={() => resolvePendingEncounter('hand-it-over')}>
-            Hand it over
-          </Button>
-          <Button onPress={() => resolvePendingEncounter('run')} tone="danger">
-            Run
-          </Button>
-        </View>
-      </View>
-    </Modal>
+    <>
+      <EncounterModal
+        cash={run.cash}
+        debt={run.debt}
+        dopeCarried={getCapacityUsed(run)}
+        equippedWeaponStats={getEquippedWeaponStats(run)}
+        health={run.health}
+        onHandItOver={() => resolvePendingEncounter('hand-it-over')}
+        onSurrender={() => resolvePendingEncounter('surrender')}
+        onRun={() => {
+          const result = resolvePendingEncounter('run');
+
+          if (result.ok && result.outcome === 'contraband-seized') {
+            const historyEntry = result.run.encounterHistory.at(-1);
+            const cashLost = historyEntry?.cashLost ?? 0;
+            const inventoryUnitsLost = historyEntry?.inventoryUnitsLost ?? 0;
+
+            setResultBlurb({
+              title: 'Shakedown!',
+              body: `Officer Hardass tossed your stash. You lost ${formatCurrency(cashLost)} and ${inventoryUnitsLost} units of dope.`,
+            });
+          }
+        }}
+        onFight={() => resolvePendingEncounter('fight')}
+        pendingEncounter={run.pendingEncounter}
+      />
+      <EncounterResultModal
+        body={resultBlurb?.body ?? ''}
+        onDismiss={() => setResultBlurb(null)}
+        title={resultBlurb?.title ?? ''}
+        visible={resultBlurb !== null}
+      />
+    </>
   );
 }
 
@@ -120,33 +151,7 @@ export function AppNavigator() {
           options={{ title: "The Shark's Office" }}
         />
       </Stack.Navigator>
-      <EncounterOverlay />
+      <ConnectedEncounterModal />
     </NavigationContainer>
   );
 }
-
-const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    justifyContent: 'center',
-    padding: 20,
-    backgroundColor: 'rgba(0,0,0,0.42)',
-  },
-  modalBox: {
-    backgroundColor: UI.colors.surface,
-    borderRadius: UI.radius.medium,
-    padding: 16,
-    gap: 12,
-  },
-  modalTitle: {
-    color: UI.colors.ink,
-    fontSize: 24,
-    fontWeight: '900',
-  },
-  modalCopy: {
-    color: UI.colors.muted,
-    fontSize: 15,
-    fontWeight: '800',
-    lineHeight: 22,
-  },
-});

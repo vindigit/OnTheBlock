@@ -223,26 +223,43 @@ export type PlayerRunEquipment = {
   };
 };
 
-export type EncounterType = 'big-sal-interception' | 'legacy';
+export type EncounterType =
+  | 'big-sal-interception'
+  | 'mugging'
+  | 'police-chase'
+  | 'legacy';
 
-export type EncounterChoice = 'hand-it-over' | 'run';
+export type EncounterChoice = 'hand-it-over' | 'surrender' | 'run' | 'fight';
 
 export type EncounterOutcome =
   | 'paid'
+  | 'surrendered'
   | 'escaped'
   | 'caught'
   | 'caught-revived'
-  | 'caught-run-ended';
+  | 'caught-run-ended'
+  | 'fought-off'
+  | 'mugged'
+  | 'officer-killed'
+  | 'fight-continued'
+  | 'wounded'
+  | 'contraband-seized';
 
 export type PendingEncounter = {
   encounterId: string;
-  type: 'big-sal-interception';
+  type: 'big-sal-interception' | 'mugging' | 'police-chase';
   title: string;
   body: string;
   createdDay: number;
   fromLocationId: LocationId;
   toLocationId: LocationId;
-  debtAtTrigger: number;
+  debtAtTrigger?: number;
+  cashAtTrigger?: number;
+  deputyCount?: number;
+  officersRemaining?: number;
+  officersDefeated?: number;
+  round?: number;
+  lastRoundSummary?: string;
 };
 
 export type EncounterHistoryEntry = {
@@ -256,6 +273,11 @@ export type EncounterHistoryEntry = {
   debtReduced?: number;
   healthLost?: number;
   inventoryUnitsLost?: number;
+  fightSuccessChance?: number;
+  weaponId?: WeaponId;
+  cashRewarded?: number;
+  deputiesCount?: number;
+  officersDefeated?: number;
 };
 
 export type RunEndReason = 'day-limit' | 'health-zero';
@@ -388,7 +410,7 @@ export type EncounterResolutionResult =
     }
   | {
       ok: false;
-      reason: 'run-ended' | 'no-pending-encounter' | 'invalid-choice';
+      reason: 'run-ended' | 'no-pending-encounter' | 'invalid-choice' | 'no-equipped-weapon';
     };
 
 export type LoadSaveResult =

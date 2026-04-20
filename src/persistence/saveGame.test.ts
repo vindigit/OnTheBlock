@@ -21,7 +21,7 @@ describe('save game persistence', () => {
       return;
     }
     expect(parsed.saveGame.serializedRunState).toEqual(run);
-    expect(parsed.saveGame.saveVersion).toBe(3);
+    expect(parsed.saveGame.saveVersion).toBe(4);
   });
 
   it('loads through a storage adapter', () => {
@@ -101,7 +101,7 @@ describe('save game persistence', () => {
     }
 
     const migratedRun = parsed.saveGame.serializedRunState;
-    expect(parsed.saveGame.saveVersion).toBe(3);
+    expect(parsed.saveGame.saveVersion).toBe(4);
     expect(migratedRun.inventory.coke_brick).toEqual({
       quantity: 2,
       averagePurchasePrice: 2000,
@@ -172,7 +172,7 @@ describe('save game persistence', () => {
     if (!parsed.ok) {
       return;
     }
-    expect(parsed.saveGame.saveVersion).toBe(3);
+    expect(parsed.saveGame.saveVersion).toBe(4);
     expect(parsed.saveGame.serializedRunState.currentLocationId).toBe('the-bodega');
     expect(
       parsed.saveGame.serializedRunState.equipment.equippedWeaponLoadout.weaponId,
@@ -186,5 +186,130 @@ describe('save game persistence', () => {
     expect(
       parsed.saveGame.serializedRunState.locationStates['the-bodega'],
     ).toBeDefined();
+  });
+
+  it('migrates v3 saves with mugging pending encounters', () => {
+    const run = {
+      ...createNewRun({ seed: 'mugging-save' }),
+      pendingEncounter: {
+        encounterId: 'mugging-save-test',
+        type: 'mugging' as const,
+        title: 'Cornered!',
+        body: 'A couple of wolves step out from the stairwell.',
+        createdDay: 4,
+        fromLocationId: 'velvet-heights' as const,
+        toLocationId: 'vista-creek-towers' as const,
+        cashAtTrigger: 50_000,
+      },
+    };
+    const legacySave = {
+      ...createSaveGame(run),
+      saveVersion: 3,
+    };
+    const parsed = deserializeSaveGame(JSON.stringify(legacySave));
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+    expect(parsed.saveGame.serializedRunState.pendingEncounter).toMatchObject({
+      encounterId: 'mugging-save-test',
+      type: 'mugging',
+      cashAtTrigger: 50_000,
+    });
+    expect(parsed.saveGame.saveVersion).toBe(4);
+  });
+
+  it('round trips police pending encounters and police history in v4 saves', () => {
+    const run = {
+      ...createNewRun({ seed: 'police-save' }),
+      pendingEncounter: {
+        encounterId: 'police-save-test',
+        type: 'police-chase' as const,
+        title: 'Red and Blue!',
+        body: 'Officer Hardass rolls up hot.',
+        createdDay: 4,
+        fromLocationId: 'velvet-heights' as const,
+        toLocationId: 'vista-creek-towers' as const,
+        cashAtTrigger: 50_000,
+        deputyCount: 2,
+        officersRemaining: 3,
+        officersDefeated: 1,
+        round: 2,
+        lastRoundSummary: 'Glock 19 dropped one officer. 3 still on you.',
+      },
+      encounterHistory: [
+        {
+          encounterId: 'police-history-test',
+          type: 'police-chase' as const,
+          day: 4,
+          locationId: 'vista-creek-towers' as const,
+          choice: 'fight' as const,
+          outcome: 'fought-off' as const,
+          cashRewarded: 100_000,
+          deputiesCount: 2,
+          officersDefeated: 3,
+          fightSuccessChance: 0.9,
+          weaponId: 'draco' as const,
+        },
+      ],
+    };
+    const parsed = deserializeSaveGame(serializeSaveGame(createSaveGame(run)));
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+    expect(parsed.saveGame.serializedRunState.pendingEncounter).toMatchObject({
+      encounterId: 'police-save-test',
+      type: 'police-chase',
+      deputyCount: 2,
+      officersRemaining: 3,
+      officersDefeated: 1,
+      round: 2,
+      lastRoundSummary: 'Glock 19 dropped one officer. 3 still on you.',
+    });
+    expect(parsed.saveGame.serializedRunState.encounterHistory.at(-1)).toMatchObject({
+      cashRewarded: 100_000,
+      deputiesCount: 2,
+      officersDefeated: 3,
+      type: 'police-chase',
+      weaponId: 'draco',
+    });
+  });
+
+  it('drops malformed police pending encounters without corrupting the save', () => {
+    const run = {
+      ...createNewRun({ seed: 'bad-police-save' }),
+      pendingEncounter: {
+        encounterId: 'bad-police-save-test',
+        type: 'police-chase',
+        title: 'Red and Blue!',
+        body: 'Officer Hardass rolls up hot.',
+        createdDay: 4,
+        fromLocationId: 'velvet-heights',
+        toLocationId: 'vista-creek-towers',
+        deputyCount: 2,
+        officersRemaining: 'three',
+        officersDefeated: 1,
+        round: 2,
+      },
+    };
+    const parsed = deserializeSaveGame(
+      JSON.stringify({
+        saveSlotId: 'active-run',
+        serializedRunState: run,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        appVersion: '1.0.0',
+        saveVersion: 4,
+      }),
+    );
+
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) {
+      return;
+    }
+    expect(parsed.saveGame.serializedRunState.pendingEncounter).toBeNull();
   });
 });

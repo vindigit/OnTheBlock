@@ -9,7 +9,10 @@ import type {
   ApparelItemId,
   AttachmentId,
   DrugId,
+  EncounterChoice,
   EncounterHistoryEntry,
+  EncounterOutcome,
+  EncounterType,
   HiddenMarketConditionId,
   Inventory,
   InventoryEntry,
@@ -32,7 +35,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-const LEGACY_SAVE_VERSIONS = [1, 2];
+const LEGACY_SAVE_VERSIONS = [1, 2, 3];
 const CURRENT_SAVE_VERSION = RUN_CONFIG.saveVersion;
 const LEGACY_DRUG_ID_MAP: Record<string, DrugId> = {
   weed: 'weed',
@@ -58,6 +61,32 @@ const HIDDEN_MARKET_CONDITION_IDS: HiddenMarketConditionId[] = [
 const LOCATION_IDS = LOCATIONS.map((location) => location.locationId);
 const APPAREL_IDS: ApparelItemId[] = ['amiri_jeans', 'crossbody_bag', 'trench_coat'];
 const SURVIVAL_IDS: SurvivalItemId[] = ['snickers', 'bandages', 'narcan'];
+const ENCOUNTER_TYPES: EncounterType[] = [
+  'big-sal-interception',
+  'mugging',
+  'police-chase',
+  'legacy',
+];
+const ENCOUNTER_CHOICES: EncounterChoice[] = [
+  'hand-it-over',
+  'surrender',
+  'run',
+  'fight',
+];
+const ENCOUNTER_OUTCOMES: EncounterOutcome[] = [
+  'paid',
+  'surrendered',
+  'escaped',
+  'caught',
+  'caught-revived',
+  'caught-run-ended',
+  'fought-off',
+  'mugged',
+  'officer-killed',
+  'fight-continued',
+  'wounded',
+  'contraband-seized',
+];
 
 function isDrugId(value: string): value is DrugId {
   return value in DRUG_BY_ID;
@@ -81,6 +110,22 @@ function isApparelItemId(value: unknown): value is ApparelItemId {
 
 function isSurvivalItemId(value: unknown): value is SurvivalItemId {
   return typeof value === 'string' && SURVIVAL_IDS.includes(value as SurvivalItemId);
+}
+
+function isEncounterType(value: unknown): value is EncounterType {
+  return typeof value === 'string' && ENCOUNTER_TYPES.includes(value as EncounterType);
+}
+
+function isEncounterChoice(value: unknown): value is EncounterChoice {
+  return typeof value === 'string' && ENCOUNTER_CHOICES.includes(value as EncounterChoice);
+}
+
+function isEncounterOutcome(value: unknown): value is EncounterOutcome {
+  return typeof value === 'string' && ENCOUNTER_OUTCOMES.includes(value as EncounterOutcome);
+}
+
+function isNonNegativeInteger(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0;
 }
 
 function normalizeLocationId(value: unknown): LocationId {
@@ -259,23 +304,11 @@ function migrateEncounterHistory(value: unknown): EncounterHistoryEntry[] {
           typeof entry.encounterId === 'string'
             ? entry.encounterId
             : `legacy-${index}`,
-        type:
-          entry.type === 'big-sal-interception'
-            ? 'big-sal-interception'
-            : 'legacy',
+        type: isEncounterType(entry.type) ? entry.type : 'legacy',
         day: typeof entry.day === 'number' ? entry.day : 1,
         locationId: normalizeLocationId(entry.locationId),
-        choice: entry.choice === 'hand-it-over' || entry.choice === 'run'
-          ? entry.choice
-          : 'legacy',
-        outcome:
-          entry.outcome === 'paid' ||
-          entry.outcome === 'escaped' ||
-          entry.outcome === 'caught' ||
-          entry.outcome === 'caught-revived' ||
-          entry.outcome === 'caught-run-ended'
-            ? entry.outcome
-            : 'legacy',
+        choice: isEncounterChoice(entry.choice) ? entry.choice : 'legacy',
+        outcome: isEncounterOutcome(entry.outcome) ? entry.outcome : 'legacy',
         cashLost: typeof entry.cashLost === 'number' ? entry.cashLost : undefined,
         debtReduced:
           typeof entry.debtReduced === 'number' ? entry.debtReduced : undefined,
@@ -285,29 +318,95 @@ function migrateEncounterHistory(value: unknown): EncounterHistoryEntry[] {
           typeof entry.inventoryUnitsLost === 'number'
             ? entry.inventoryUnitsLost
             : undefined,
+        fightSuccessChance:
+          typeof entry.fightSuccessChance === 'number'
+            ? entry.fightSuccessChance
+            : undefined,
+        weaponId: isWeaponId(entry.weaponId) ? entry.weaponId : undefined,
+        cashRewarded:
+          typeof entry.cashRewarded === 'number' ? entry.cashRewarded : undefined,
+        deputiesCount:
+          typeof entry.deputiesCount === 'number' ? entry.deputiesCount : undefined,
+        officersDefeated:
+          typeof entry.officersDefeated === 'number'
+            ? entry.officersDefeated
+            : undefined,
       },
     ];
   });
 }
 
 function migratePendingEncounter(value: unknown): PendingEncounter | null {
-  if (!isRecord(value) || value.type !== 'big-sal-interception') {
+  if (
+    !isRecord(value) ||
+    (value.type !== 'big-sal-interception' &&
+      value.type !== 'mugging' &&
+      value.type !== 'police-chase')
+  ) {
     return null;
+  }
+
+  const isMugging = value.type === 'mugging';
+  const isPolice = value.type === 'police-chase';
+
+  if (isPolice) {
+    if (
+      !isNonNegativeInteger(value.deputyCount) ||
+      !isNonNegativeInteger(value.officersRemaining) ||
+      !isNonNegativeInteger(value.officersDefeated) ||
+      !isNonNegativeInteger(value.round)
+    ) {
+      return null;
+    }
+
+    return {
+      encounterId:
+        typeof value.encounterId === 'string' ? value.encounterId : 'police-legacy',
+      type: 'police-chase',
+      title: typeof value.title === 'string' ? value.title : 'Red and Blue!',
+      body:
+        typeof value.body === 'string'
+          ? value.body
+          : 'Officer Hardass rolls up hot. The badge is out, the cuffs are ready, and your pockets are the whole case.',
+      createdDay: typeof value.createdDay === 'number' ? value.createdDay : 1,
+      fromLocationId: normalizeLocationId(value.fromLocationId),
+      toLocationId: normalizeLocationId(value.toLocationId),
+      cashAtTrigger:
+        typeof value.cashAtTrigger === 'number' ? value.cashAtTrigger : undefined,
+      deputyCount: value.deputyCount,
+      officersRemaining: value.officersRemaining,
+      officersDefeated: value.officersDefeated,
+      round: value.round,
+      lastRoundSummary:
+        typeof value.lastRoundSummary === 'string'
+          ? value.lastRoundSummary
+          : undefined,
+    };
   }
 
   return {
     encounterId:
-      typeof value.encounterId === 'string' ? value.encounterId : 'big-sal-legacy',
-    type: 'big-sal-interception',
-    title: typeof value.title === 'string' ? value.title : 'Blocked!',
+      typeof value.encounterId === 'string'
+        ? value.encounterId
+        : isMugging
+          ? 'mugging-legacy'
+          : 'big-sal-legacy',
+    type: value.type,
+    title:
+      typeof value.title === 'string' ? value.title : isMugging ? 'Cornered!' : 'Blocked!',
     body:
       typeof value.body === 'string'
         ? value.body
-        : "Big Sal's crew cuts you off in the alley. They don't want to talk about prices; they want what you owe.",
+        : isMugging
+          ? 'A couple of wolves step out from the stairwell. They clock the roll in your pocket before you clock the exit.'
+          : "Big Sal's crew cuts you off in the alley. They don't want to talk about prices; they want what you owe.",
     createdDay: typeof value.createdDay === 'number' ? value.createdDay : 1,
     fromLocationId: normalizeLocationId(value.fromLocationId),
     toLocationId: normalizeLocationId(value.toLocationId),
-    debtAtTrigger: typeof value.debtAtTrigger === 'number' ? value.debtAtTrigger : 0,
+    debtAtTrigger:
+      typeof value.debtAtTrigger === 'number' ? value.debtAtTrigger : undefined,
+    cashAtTrigger:
+      typeof value.cashAtTrigger === 'number' ? value.cashAtTrigger : undefined,
   };
 }
 

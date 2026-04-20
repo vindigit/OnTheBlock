@@ -2,7 +2,11 @@ import { RUN_CONFIG } from '../../../config/economy';
 import { LOCATIONS } from '../../../config/locations';
 import type { LocationId, PlayerRun, TravelResult } from '../../models/types';
 import { applyDailyDebtGrowth } from '../debt/debtEngine';
-import { createBigSalInterception } from '../encounter/encounterEngine';
+import {
+  createBigSalInterception,
+  createMuggingEncounter,
+  createPoliceEncounter,
+} from '../encounter/encounterEngine';
 import { generateMarketsForDay } from '../market/marketEngine';
 
 function endRunAtDayLimit(run: PlayerRun): PlayerRun {
@@ -87,7 +91,11 @@ export function travelToLocation(
     traveledRun,
     fromLocationId,
     destinationLocationId,
-  );
+  ) ?? createPoliceEncounter(
+    traveledRun,
+    fromLocationId,
+    destinationLocationId,
+  ) ?? createMuggingEncounter(traveledRun, fromLocationId, destinationLocationId);
 
   return {
     ok: true,

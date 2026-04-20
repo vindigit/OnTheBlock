@@ -7,7 +7,7 @@ export const RUN_CONFIG = {
   startingHealth: 100,
   baseCapacity: 100,
   debtGrowthRate: 0.04,
-  saveVersion: 3,
+  saveVersion: 4,
   narcanReviveHealth: 25,
 } as const;
 
@@ -42,5 +42,25 @@ export const ENCOUNTER_CONFIG = {
     highDebtChance: 0.3,
     failedRunHealthLoss: 50,
     failedRunInventoryLossRate: 0.1,
+  },
+  mugging: {
+    cashThreshold: 500,
+    triggerChance: 0.1,
+    surrenderLossMinRate: 0.2,
+    surrenderLossMaxRate: 0.4,
+    runEscapeChance: 0.6,
+    failedRunHealthLoss: 20,
+    fightMaxChance: 0.95,
+  },
+  police: {
+    triggerChance: 1 / 7,
+    maxDeputies: 3,
+    runLossChance: 1 / 8,
+    runCashLossRate: 0.5,
+    woundChance: 1 / 4,
+    killChance: 1 / 15,
+    woundHealthLoss: 25,
+    reward: 100_000,
+    fightMaxChance: 0.95,
   },
 } as const;
